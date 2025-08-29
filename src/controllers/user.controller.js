@@ -38,7 +38,9 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // 4. Check for Cover and Avatar images using the multer middleware which will be saved in the ../public/temp folder before uploading on cloudinary
-    const avatarLocalPath = req.files?.avatar[0]?.path;
+    const avatarLocalPath = req.files?.avatar && req.files.avatar.length > 0 
+    ? req.files.avatar[0].path 
+    : null;
     let coverImageLocalPath; // checking coverimage exists or not, the above method is not working as it is working for avatar
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
         coverImageLocalPath = req.files.coverImage[0].path
@@ -74,7 +76,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
     // 9. Response using apiResponse
     return res.status(201).json(
-        new apiResponse(200, createdUser, "Successfully Registred the user")
+        new apiResponse(200, createdUser, "Successfully Registered the user")
     )
 })
 
