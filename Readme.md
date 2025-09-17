@@ -1,5 +1,5 @@
 # Learning Backend Through a Project  
-_NotYouTube: My Fullstack Project_
+_8BitTube: My Fullstack Project_
 
 [![Open ER Diagram](https://img.shields.io/badge/Open%20ER%20Diagram-Click%20Here-success?style=for-the-badge&logo=dependabot)](https://app.eraser.io/workspace/KWm8iCRspuZ86DIbYWb2?origin=share)
 
