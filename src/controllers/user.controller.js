@@ -4,6 +4,17 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { apiResponse } from "../utils/apiResponse.js"
 
+const generateAccessandRefreshTokens = async (user_id) => {
+    try {
+        const user = await User.findById(user_id)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+        return({accessToken, refreshToken})
+    } catch (error) {
+        throw new apiError(500, "something went wrong while generating refresh and access tokens")
+    }
+}
+
 const registerUser = asyncHandler(async (req, res) => {
     /* 
     --- ALGORITHM TO FOLLOW IN ORDER TO BUILD THE USER REGISTRATION LOGIC --- 
@@ -38,9 +49,9 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     // 4. Check for Cover and Avatar images using the multer middleware which will be saved in the ../public/temp folder before uploading on cloudinary
-    const avatarLocalPath = req.files?.avatar && req.files.avatar.length > 0 
-    ? req.files.avatar[0].path 
-    : null;
+    const avatarLocalPath = req.files?.avatar && req.files.avatar.length > 0
+        ? req.files.avatar[0].path
+        : null;
     let coverImageLocalPath; // checking coverimage exists or not, the above method is not working as it is working for avatar
     if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
         coverImageLocalPath = req.files.coverImage[0].path
@@ -80,4 +91,37 @@ const registerUser = asyncHandler(async (req, res) => {
     )
 })
 
-export { registerUser }
+const loginUser = asyncHandler(async (req, res) => {
+    /* 
+    --- ALGORITHM TO FOLLOW IN ORDER TO BUILD THE USER LOGIN LOGIC --- 
+        1. get user details
+        2. validations for email/username and password
+        3. check if the user is registered 
+        4. check password
+        5. generate access and refresh tokens
+        6. send cookies
+        7. response for success
+    */
+    // 1.
+    const { username, email, password } = req.body
+    // 2.
+    if (!username || !email) {
+        throw new apiError(400, "username or email is required");
+    }
+    // check if user does not exist
+    const user = await User.findOne({
+        $or: [{ username }, (email)]
+    })
+    if (!user) {
+        throw new apiError(404, "User does not exist")
+    }
+
+    // 3. 4. if exists check password
+    const isPasswordValid = user.isPasswordCorrect(password)
+    if (!isPasswordValid) {
+        throw new apiError(401, "Invalid Login credentials")
+    }
+
+})
+
+export { registerUser, loginUser }
