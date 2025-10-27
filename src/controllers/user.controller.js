@@ -4,12 +4,15 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 import { apiResponse } from "../utils/apiResponse.js"
 
-const generateAccessandRefreshTokens = async (user_id) => {
+const generateAccessAndRefreshTokens = async (user_id) => {
     try {
         const user = await User.findById(user_id)
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
-        return({accessToken, refreshToken})
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+        return { accessToken, refreshToken }
     } catch (error) {
         throw new apiError(500, "something went wrong while generating refresh and access tokens")
     }
@@ -110,7 +113,7 @@ const loginUser = asyncHandler(async (req, res) => {
     }
     // check if user does not exist
     const user = await User.findOne({
-        $or: [{ username }, (email)]
+        $or: [{ username }, { email }]
     })
     if (!user) {
         throw new apiError(404, "User does not exist")
@@ -122,6 +125,57 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new apiError(401, "Invalid Login credentials")
     }
 
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+    // Using Destructuring we directly took access and refresh tokens instead of first making an object
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    // returning everything except password and refresh token from the user document
+
+    const options = {
+        httpOnly: true, // only modifiable by the server
+        secure: true
+    }
+
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new apiResponse(200,
+                {
+                    user: loggedInUser, accessToken, refreshToken
+                },
+                "User Logged in Successfully"
+            )
+        )
+
+
 })
 
-export { registerUser, loginUser }
+const logoutUser = asyncHandler(async (req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true // this will give us new value meaning the response with undefined refreshToken
+        }
+    )
+    // we can access req.user because we made a middleware that gives the req object access to the user with the same access token they had. Meaning now we have the Document of the exact user we need to delete refreshToken of from the database
+
+    const options = {
+        httpOnly: true, // only modifiable by the server
+        secure: true
+    }
+    return res.status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(
+            new apiResponse(200, {}, "User Logged out successfully!")
+        )
+})
+
+export { registerUser, loginUser, logoutUser }
